@@ -6,6 +6,8 @@
 #define ARRAY_FULL(t)(!t || t->length == t->capacity)
 #define GET_AT(t, i)(t->values[i]);
 #define PRINT_TAB() printf("    ");
+#define IS_FLAG_ESCAPE(v) (v[1] == '-' && v[2] == 0)
+#define NARGS_QUANTIFIER(nargs) nargs? nargs == 1? "": "s" : "(s)"
 
 typedef unsigned int slot_t;
 
@@ -656,4 +658,365 @@ void freeApp(){
     app.groups = NULL;
     app.switches = NULL;
     app.usage = NULL;
+}
+
+void* matchEntity(Flag* flag, Array* array, bool checkAlias, bool hasHyphen){
+    if (!array){
+        return NULL;
+    }
+    if (!checkAlias){
+        for (int i = 0; i < array->length; i ++){
+            FlagInfo* other = array->values[i];
+            if (flagEquals(flag, other->flag)){
+                return (void*)other;
+            }
+        }
+        return NULL;
+    }
+    for (int i = 0; i < array->length; i ++){
+        FlagInfo* other = array->values[i];
+        if (other->alias == flag->value[hasHyphen]){
+            return (void*)other;
+        }
+    }
+    return NULL;
+}
+
+
+int parseValues(void* result[], const char name[], bool isPositional, slot_t nargs, slot_t slot){
+    size_t amount = 0;
+    char** values;
+    if (nargs == 1){
+        char* value = NULL;
+        if (argumentIndex == argCount){
+            goto noValuesError;
+        }
+        value = argValues[argumentIndex];
+        if (!isGreedy && value[0] == '-'){
+            if (!IS_FLAG_ESCAPE(value)){
+                goto noValuesError;
+            }
+            argumentIndex++;
+            if (argumentIndex == argCount){
+                goto noValuesError;
+            }
+            value = argValues[argumentIndex];
+        }
+        result[slot] = (void*)strdup(value);
+        argumentIndex++;
+        isGreedy = false;
+        return 0;
+    }
+    if (nargs == 0){        
+        amount = 0;
+        int startIndex = argumentIndex;
+        bool escapedFlag = false;
+        while (argumentIndex < argCount){
+            char* value = argValues[argumentIndex];
+            if (!isGreedy && value[0] == '-'){
+                bool isEscape = IS_FLAG_ESCAPE(value);
+                if (!escapedFlag){
+                    if (isEscape){
+                        if (!amount){
+                            isGreedy = true;
+                            continue;
+                        }
+                        escapedFlag = true;
+                    }
+                    break;
+                }else if (isEscape){
+                    escapedFlag = true;
+                }
+            }else {
+                amount ++;
+
+            }
+            argumentIndex++;
+        }
+        
+        if (!amount){
+            goto noValuesError;
+        }
+        values = malloc(sizeof(char*)*(amount+1));
+        if (!values){
+            perror("memory");
+            return 1;
+        }
+
+        values[amount] = NULL;
+        for (int i = 0; i < amount; i ++){
+            char* value = argValues[startIndex+i];
+            if (IS_FLAG_ESCAPE(value)){
+                continue;
+            }
+            values[i] = value;
+        }
+        result[slot] = (void*)values;
+        isGreedy = false;
+        return 0;
+    }else {
+        values = malloc((nargs+1)*sizeof(char*));
+        if (!values){
+            perror("memory");
+            return 1;
+        }
+        values[nargs] = NULL;
+        size_t amount = 0;
+        bool escapedFlag = false;
+        while (argumentIndex < argCount){
+            if (amount == nargs){
+                break;
+            }
+            char* value = argValues[argumentIndex];
+            if (!isGreedy && value[0] == '-'){
+                bool isEscape = IS_FLAG_ESCAPE(value);
+                if (isEscape){
+                    if (!amount){
+                        isGreedy = true;
+                    }else {
+                        escapedFlag = true;
+                    }
+                }else {
+                    if (escapedFlag){
+                        escapedFlag = false;
+                        values[amount] = value;
+                        amount++;
+                    }else{
+                        break;
+                    }
+                }
+            }else {
+                values[amount] = value;
+                amount ++;
+            }
+            argumentIndex++;
+        }
+
+        if (!amount){
+            goto invalidAmountError;
+        }
+
+        if (amount != nargs){
+            goto invalidAmountError;
+        }
+        result[slot] = (void*)values;
+        isGreedy = false;
+        return 0;
+    }
+    noValuesError:
+        if (isPositional){
+            fprintf(stderr,"Error: Expected %d values for positional argument [%s]\n", nargs, name);
+        }else {
+            fprintf(stderr,"Error: Expected %d values for argument %s\n", nargs, name);
+        }
+    goto exitF;
+
+    invalidAmountError:
+        if (isPositional){
+            fprintf(stderr,"Error: Expected %d values but recieved %d [%s]\n", nargs, amount, name);
+        }else {
+            fprintf(stderr,"Error: Expected %d values but recieved %d %s\n", nargs, amount, name);
+        }
+    goto exitF;
+
+    exitF:
+        free(values);
+        putTry();
+    return 1;
+}
+
+
+int runCommand(){
+    slot_t fields = currentCommand->fields;
+    void** result = calloc(fields, sizeof(void*));
+    if (!result){
+        perror("memory");
+        return 1;
+    }
+    int currentPositional = 0;
+    int code = 0;
+    int check = true;
+    Positional* pos = NULL;
+    Argument* arg = NULL;
+    Option* opt = NULL;
+    Switch* sw = NULL;
+
+    while (argumentIndex < argCount){
+        Flag value = {.value = (char*)argValues[argumentIndex], .length=strlen(argValues[argumentIndex])};
+        if (!isGreedy && value.value[0] =='-'){
+            if (IS_FLAG_ESCAPE(value.value)){
+                isGreedy = true;
+                argumentIndex++;
+                continue;
+            }
+            bool isAlias = value.length == 2;
+            if (arg = matchEntity(&value, currentCommand->arguments, isAlias, true)){
+                argumentIndex++;
+                if (code = parseValues(result, arg->flag->value, false, arg->nargs, arg->slot)){
+                    check = false;
+                    break;
+                }
+                continue;
+            } else if (opt = matchEntity(&value, currentCommand->options, isAlias, true)){
+                result[opt->slot] = (void*)true;
+                
+            } else if (sw = matchEntity(&value, app.switches, isAlias, true)){
+                if (code = sw->callback(appNamespace)){
+                    check = false;
+                    break;
+                }
+                if (sw->final){
+                    check = false;
+                    break;
+                }
+            } else {
+                fprintf(stderr,"Error: Unrecognized option `%s`\n", value.value);
+                putTry();
+                code = 1; 
+                break;
+            }
+        }else if (currentCommand->positionals && currentPositional++ < currentCommand->positionals->length){
+            pos = GET_AT(currentCommand->positionals, currentPositional);
+            if (code = parseValues(result, pos->name, true, pos->nargs, pos->slot)){
+                check = false;
+                break;
+            }
+            currentPositional++;
+            continue;
+        }else {
+            if (pos){
+                fprintf(stderr,"Error: Positional argument [%s] Expected %d value%s\n", pos->name, pos->nargs, NARGS_QUANTIFIER(pos->nargs));
+            }else if (arg){
+                fprintf(stderr,"Error: Argument %s Expected %d value%s\n", arg->flag->value, arg->nargs, NARGS_QUANTIFIER(arg->nargs));
+            }else {
+                fprintf(stderr,"Error: Unexpected value \"%s\"\n", value.value);
+            }
+            putTry();
+            code = 1;
+            check = false;
+            break;
+        }
+        argumentIndex++;
+    }
+
+    if (!code && check){
+        if (currentCommand->positionals){
+            for (int i = 0; i < currentCommand->positionals->length; i ++){
+                pos = GET_AT(currentCommand->positionals, i);
+                if (pos->optional){
+                    continue;
+                }   
+                if (!result[pos->slot]){
+                    fprintf(stderr,"Error: Missing value for positional argument [%s]\n", pos->name);
+                    putTry();
+                    check = false;
+                    break;
+                }
+            }
+        }
+        if (check && currentCommand->arguments){
+            for (int i = 0; i < currentCommand->arguments->length; i ++){
+                arg = GET_AT(currentCommand->arguments, i);
+                if (arg->optional){
+                    continue;
+                }   
+                if (!result[arg->slot]){
+                    fprintf(stderr,"Error: Missing value for  argument `%s`\n", arg->flag->value);
+                    putTry();
+                    check = false;
+                    break;
+                }
+            }
+        }
+        CommandCallback* callback = currentCommand->callback;
+        freeApp();
+        if (check){
+            code = callback(result, appNamespace);
+        }
+    }else {
+        freeApp();
+    }
+    for (int i = 0; i < fields; i ++){
+        if (!result[i]){
+            continue;
+        }
+        free(result[i]);
+        
+    }
+    free(result);
+    return code;
+}
+
+int runApp(size_t argc, const char* argv[], void* namespace){
+    argCount = argc;
+    argValues = (char**)argv;
+    appNamespace = namespace;
+    int code = 0;
+    while (argumentIndex < argCount){
+        Flag value = {.value = (char*)argValues[argumentIndex], .length=strlen(argValues[argumentIndex])};
+        if (!isGreedy && value.value[0] == '-'){
+            if (IS_FLAG_ESCAPE(value.value)){
+                isGreedy = true;
+                argumentIndex++;
+                continue;
+            }
+            Switch* sw;
+            if (sw = matchEntity(&value, app.switches,value.length == 2, true)){
+                if (code = sw->callback(namespace)){
+                    break;
+                }
+                if (sw->final){
+                    break;
+                }
+            }else if (app.main){
+                currentCommand = app.main;
+                break;
+            }else {
+                fprintf(stderr,"Error: Unrecognised option `%s`\n", value.value);
+                code = 1;
+                break;
+            }
+        }else if(isGreedy && !masterTrace){
+            if (app.main){
+                currentCommand = app.main;
+                break;
+            }
+            fprintf(stderr,"Error: Unexpected value \"%s\"\n", value.value);
+
+        }else {
+            if (currentCommand = matchEntity(&value, !currentGroup? app.commands : currentGroup->commands ,value.length == 1, false)){
+                masterTrace++;
+                break;
+            } else if (currentGroup = matchEntity(&value, !currentGroup? app.groups : currentGroup->groups , value.length == 1, false)){
+                masterTrace++;
+            } else if (app.main){
+                currentCommand = app.main;
+                break;
+            
+            }else {
+                fprintf(stderr,"Error: Unrecognised command `%s`\n", value.value);
+                code = 1;
+                break;
+            }
+        }
+        argumentIndex++;
+    }
+
+    if (!code){
+        if (!currentCommand){
+            if (currentGroup){
+                fprintf(stderr,"Error: Missing command name.\n");
+                code = 1;
+            }else {
+                currentCommand = app.main;
+            }
+        }
+        if (currentCommand){
+            code = runCommand();
+        }
+    }else{
+        freeApp();
+
+    }
+    return code;
 }
