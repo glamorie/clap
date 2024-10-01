@@ -5,6 +5,7 @@
 
 #define ARRAY_FULL(t)(!t || t->length == t->capacity)
 #define GET_AT(t, i)(t->values[i]);
+#define PRINT_TAB() printf("    ");
 
 typedef unsigned int slot_t;
 
@@ -408,4 +409,135 @@ void addMainCommand(Slots slots, CommandCallback* callback){
     main->options = createArray(slots.c);
     main->callback = callback;
     app.main = main;
+}
+
+void putCommandBits(Command* command){
+    if (command->positionals && command->positionals->length){
+        printf("Positional%c\n", command->positionals->length == 1? 0:'s');
+        
+        for (int i = 0; i < command->positionals->length; i ++){
+            Positional* pos = GET_AT(command->positionals, i);
+            PRINT_TAB();
+            putWord(pos->name);
+            if (pos->metadata){
+                putchar(' ');
+                putWord(pos->metadata);
+            }
+            printf("\n        %s\n", pos->description);
+
+        }
+        putchar('\n');
+    }
+    if (command->arguments && command->arguments->length){
+        printf("Argument%c\n", command->arguments->length == 1? 0:'s');
+        
+        for (int i = 0; i < command->arguments->length; i ++){
+            Argument* arg = GET_AT(command->arguments, i);
+            PRINT_TAB();
+            if (arg->alias){
+                printf("-%c, ", arg->alias);
+            }
+            putWord(arg->flag->value);
+            if (arg->metadata){
+                printf(" %s", arg->metadata);
+            }
+            printf("\n        %s\n", arg->description);
+        }
+        putchar('\n');
+    }
+
+    if (command->options && command->options->length){
+        printf("Option%c\n", command->options->length == 1? 0:'s');
+        
+        for (int i = 0; i < command->options->length; i ++){
+            Option* opt = GET_AT(command->options, i);           
+            PRINT_TAB();
+            if (opt->alias){
+                printf("-%c, ", opt->alias);
+            }
+            printf("%s\n        %s\n", opt->flag->value, opt->description);
+      
+        }
+        putchar('\n');
+    }
+}
+
+void putSwitches(){
+    if (app.switches && app.switches->length){
+        printf("Global Option%c\n", app.switches->length == 1? 0: 's');
+        for (int i = 0; i < app.switches->length; i ++){
+            Switch* sw = GET_AT(app.switches, i);
+            PRINT_TAB();
+            if (sw->alias){
+                printf("-%c, ", sw->alias);
+            }
+            printf("%s\n        %s\n", sw->flag->value, sw->description);
+        }
+        putchar('\n');
+    }
+}
+
+void putMasterBits(Array* commands, Array* groups){
+    if (commands && commands->length){
+        printf("Command%c\n", commands->length == 1? 0:'s');
+        for (int i = 0; i < commands->length; i ++){
+            Command* command = GET_AT(commands, i);
+            PRINT_TAB();
+            if (command->alias){
+                printf("%c| ", command->alias);
+            }
+            printf("%s\n        %s\n", command->name->value, command->description);
+        }
+        putchar('\n');
+    }
+    if (groups && groups->length){
+        printf("Command Group%c\n", groups->length == 1? 0:'s');
+        for (int i = 0; i < groups->length; i ++){
+            Command* grp = GET_AT(groups, i);
+            PRINT_TAB();
+            if (grp->alias){
+                printf("%c| ", grp->alias);
+            }
+            printf("%s\n        %s\n", grp->name->value, grp->description);
+        }
+        putchar('\n');
+    }
+}
+
+void putBreadCrumb(FILE* stream){
+    for (int i = 0; i <= masterTrace; i ++){
+        fprintf(stream, "%s ", argValues[i]);
+    }
+}
+
+void putTry(){
+    fprintf(stderr, "\nTry  : ");
+    putBreadCrumb(stderr);
+    fprintf(stderr, "--help\n");
+}
+
+void putUsage(char* usage[]){
+    if (!usage || !usage[0]){
+        printf("Usage: ");
+        putBreadCrumb(stdout);
+        puts("[-h|--help]\n");
+        return;
+    }
+    if (!usage[1]){
+        printf("Usage: ");
+        putBreadCrumb(stdout);
+        printf("%s\n\n", usage[1]);
+        return;
+    }
+    
+    puts("Usage:");
+    int i = 0;
+    while (usage[i]){
+        PRINT_TAB();
+        putBreadCrumb(stdout);
+        putWord(usage[i]);
+        putchar('\n');
+        i++;
+    }
+    putchar('\n');
 }
