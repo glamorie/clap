@@ -541,3 +541,49 @@ void putUsage(char* usage[]){
     }
     putchar('\n');
 }
+
+void helpCommand(Command* command){
+    putUsage(command->usage);
+    printf("%s\n\n", command->description);
+    putCommandBits(command);
+    putSwitches();       
+}
+
+void helpGroup(CommandGroup* group){
+    printf("Usage: ");
+    putBreadCrumb(stdout);
+    puts("[-h|--help]\n");
+    printf("%s\n\n", group->description);
+    putMasterBits(group->commands, group->groups);
+    putSwitches();
+}
+
+void helpApp(){
+    printf("%s v%s\n\n%s\n\n", app.name, app.version, app.description);
+    putUsage(app.usage);
+    if (app.main){
+        putCommandBits(app.main);
+    }
+    putMasterBits(app.commands, app.groups);
+    putSwitches();
+}
+
+void printHelp(){
+    if (currentCommand && currentCommand != app.main){
+        helpCommand(currentCommand);
+        return;
+    }
+    if (currentGroup){
+        helpGroup(currentGroup);
+        return;
+    }
+    helpApp();
+}
+
+int helpSwitch(void* _){
+    printHelp();
+}
+
+int versionSwitch(void* _){
+    printf("v%s\n", app.version);
+}
