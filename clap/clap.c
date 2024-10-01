@@ -138,3 +138,13 @@ typedef struct {
     Flag* flag;
     char alias;
 }FlagInfo;
+
+static CliApp app = {NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL};
+static Command* currentCommand = NULL;
+static CommandGroup* currentGroup = NULL;
+static slot_t masterTrace = 0;
+static slot_t argumentIndex = 1;
+static char** argValues = NULL;
+static size_t argCount = 0;
+static void* appNamespace = NULL;
+static bool isGreedy = false;
