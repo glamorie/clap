@@ -587,3 +587,73 @@ int helpSwitch(void* _){
 int versionSwitch(void* _){
     printf("v%s\n", app.version);
 }
+
+void freeCommand(Command* command){
+    if (command->name){
+        free(command->name);
+    }
+    if (command->positionals){
+        for (int i = 0; i < command->positionals->length; i ++){
+            free((Positional*)(command->positionals, i));
+        }
+        free(command->positionals->values);
+        free(command->positionals);
+    }
+    if (command->arguments){
+        for (int i = 0; i < command->arguments->length; i ++){
+            Argument* arg = GET_AT(command->arguments, i);
+            free(arg->flag);
+            free(arg);
+        }
+        free(command->arguments->values);
+        free(command->arguments);
+    }
+    if (command->options){
+        for (int i = 0; i < command->options->length; i ++){
+            Option* opt = GET_AT(command->options, i);
+            free(opt->flag);
+            free(opt);
+        }
+        free(command->options->values);
+        free(command->options);
+    }
+    free(command);
+}
+
+void freeMasterBits(Array* groups, Array* commands){
+    if (commands){
+        for (int i = 0; i < commands->length; i ++){
+            Command* command = GET_AT(commands, i);
+            freeCommand(command);
+        }
+        free(commands->values);
+        free(commands);
+    }
+
+    if (groups){
+        for (int i = 0; i < groups->length; i ++){
+            CommandGroup* group = GET_AT(group->groups, i);
+            Array* cmds = group->commands;
+            Array* grps = group->commands;
+            free(group->name);
+            free(group);
+            freeMasterBits(grps, cmds);
+        }
+        free(groups->values);
+        free(groups);
+    }
+}
+
+void freeApp(){
+    if (app.main){
+        freeCommand(app.main);
+    }
+    freeMasterBits(app.groups, app.groups);
+    app.name = NULL;
+    app.version = NULL; 
+    app.description = NULL;
+    app.commands = NULL;
+    app.groups = NULL;
+    app.switches = NULL;
+    app.usage = NULL;
+}
