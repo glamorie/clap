@@ -420,10 +420,10 @@ void putCommandBits(Command* command){
         for (int i = 0; i < command->positionals->length; i ++){
             Positional* pos = GET_AT(command->positionals, i);
             PRINT_TAB();
-            putWord(pos->name);
+            printf("%s",pos->name);
             if (pos->metadata){
                 putchar(' ');
-                putWord(pos->metadata);
+                printf("%s",pos->metadata);
             }
             printf("\n        %s\n", pos->description);
 
@@ -439,7 +439,7 @@ void putCommandBits(Command* command){
             if (arg->alias){
                 printf("-%c, ", arg->alias);
             }
-            putWord(arg->flag->value);
+            printf("%s",arg->flag->value);
             if (arg->metadata){
                 printf(" %s", arg->metadata);
             }
@@ -537,7 +537,7 @@ void putUsage(char* usage[]){
     while (usage[i]){
         PRINT_TAB();
         putBreadCrumb(stdout);
-        putWord(usage[i]);
+        printf("%s",usage[i]);
         putchar('\n');
         i++;
     }
