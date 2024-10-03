@@ -439,7 +439,7 @@ void putCommandBits(Command* command){
             if (arg->alias){
                 printf("-%c, ", arg->alias);
             }
-            printf("%s",arg->flag->value);
+            printf("--%s",arg->flag->value);
             if (arg->metadata){
                 printf(" %s", arg->metadata);
             }
@@ -457,7 +457,7 @@ void putCommandBits(Command* command){
             if (opt->alias){
                 printf("-%c, ", opt->alias);
             }
-            printf("%s\n        %s\n", opt->flag->value, opt->description);
+            printf("--%s\n        %s\n", opt->flag->value, opt->description);
       
         }
         putchar('\n');
@@ -473,7 +473,7 @@ void putSwitches(){
             if (sw->alias){
                 printf("-%c, ", sw->alias);
             }
-            printf("%s\n        %s\n", sw->flag->value, sw->description);
+            printf("--%s\n        %s\n", sw->flag->value, sw->description);
         }
         putchar('\n');
     }
