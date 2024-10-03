@@ -814,9 +814,9 @@ int parseValues(void* result[], const char name[], bool isPositional, slot_t nar
 
     invalidAmountError:
         if (isPositional){
-            fprintf(stderr,"Error: Expected %d values but received %d [%s]\n", nargs, amount, name);
+            fprintf(stderr,"Error: Expected %d values for positional argument [%s]\n", nargs,  name);
         }else {
-            fprintf(stderr,"Error: Expected %d values but received %d --%s\n", nargs, amount, name);
+            fprintf(stderr,"Error: Expected %d values for --%s\n", nargs, name);
         }
     goto exitF;
 
@@ -853,6 +853,7 @@ int runCommand(){
             bool isAlias = value.length == 2;
             if (arg = matchEntity(&value, currentCommand->arguments, isAlias, true)){
                 argumentIndex++;
+                pos = NULL;
                 if (code = parseValues(result, arg->flag->value, false, arg->nargs, arg->slot)){
                     check = false;
                     break;
@@ -878,6 +879,7 @@ int runCommand(){
             }
         }else if (currentCommand->positionals && currentPositional++ < currentCommand->positionals->length){
             pos = GET_AT(currentCommand->positionals, currentPositional);
+            arg = NULL;
             if (code = parseValues(result, pos->name, true, pos->nargs, pos->slot)){
                 check = false;
                 break;
