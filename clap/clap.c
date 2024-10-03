@@ -992,12 +992,17 @@ int runApp(size_t argc, const char* argv[], void* namespace){
                 break;
             } else if (currentGroup = matchEntity(&value, !currentGroup? app.groups : currentGroup->groups , value.length == 1, false)){
                 masterTrace++;
-            } else if (app.main){
+            } else if (app.main && app.main->positionals && app.main->positionals->length){
                 currentCommand = app.main;
                 break;
             
             }else {
-                fprintf(stderr,"Error: Unrecognised command `%s`\n", value.value);
+                if (app.commands && app.commands->length){
+                    fprintf(stderr,"Error: Unrecognised command `%s`\n", value.value);
+                }else {
+                    fprintf(stderr,"Error: Unexpected value `%s`\n", value.value);
+                }
+                putTry();
                 code = 1;
                 break;
             }
