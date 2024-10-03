@@ -20,7 +20,7 @@ static bool flagEquals(Flag* a, Flag* b, int x){
     if (a->length != (b->length + x)){
         return false;
     }
-    for (int i = 0; i < a->length; i ++){
+    for (int i = 0; i < b->length; i ++){
         if (a->value[i+x] != b->value[i]){
             return false;
         }
