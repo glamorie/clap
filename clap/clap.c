@@ -17,10 +17,10 @@ typedef struct {
 }Flag;
 
 static bool flagEquals(Flag* a, Flag* b){
-    if (a->length != b->length){
+    if (a->length != b->length + 2){
         return false;
     }
-    for (int i = 0; i < a->length; i ++){
+    for (int i = 2; i < a->length; i ++){
         if (a->value[i] != b->value[i]){
             return false;
         }
@@ -807,15 +807,15 @@ int parseValues(void* result[], const char name[], bool isPositional, slot_t nar
         if (isPositional){
             fprintf(stderr,"Error: Expected %d values for positional argument [%s]\n", nargs, name);
         }else {
-            fprintf(stderr,"Error: Expected %d values for argument %s\n", nargs, name);
+            fprintf(stderr,"Error: Expected %d values for argument --%s\n", nargs, name);
         }
     goto exitF;
 
     invalidAmountError:
         if (isPositional){
-            fprintf(stderr,"Error: Expected %d values but recieved %d [%s]\n", nargs, amount, name);
+            fprintf(stderr,"Error: Expected %d values but received %d [%s]\n", nargs, amount, name);
         }else {
-            fprintf(stderr,"Error: Expected %d values but recieved %d %s\n", nargs, amount, name);
+            fprintf(stderr,"Error: Expected %d values but received %d --%s\n", nargs, amount, name);
         }
     goto exitF;
 
@@ -887,7 +887,7 @@ int runCommand(){
             if (pos){
                 fprintf(stderr,"Error: Positional argument [%s] Expected %d value%s\n", pos->name, pos->nargs, NARGS_QUANTIFIER(pos->nargs));
             }else if (arg){
-                fprintf(stderr,"Error: Argument %s Expected %d value%s\n", arg->flag->value, arg->nargs, NARGS_QUANTIFIER(arg->nargs));
+                fprintf(stderr,"Error: Argument %s Expected --%d value%s\n", arg->flag->value, arg->nargs, NARGS_QUANTIFIER(arg->nargs));
             }else {
                 fprintf(stderr,"Error: Unexpected value \"%s\"\n", value.value);
             }
@@ -921,7 +921,7 @@ int runCommand(){
                     continue;
                 }   
                 if (!result[arg->slot]){
-                    fprintf(stderr,"Error: Missing value for  argument `%s`\n", arg->flag->value);
+                    fprintf(stderr,"Error: Missing value for  argument --%s\n", arg->flag->value);
                     putTry();
                     check = false;
                     break;
