@@ -16,12 +16,12 @@ typedef struct {
     char* value;
 }Flag;
 
-static bool flagEquals(Flag* a, Flag* b){
-    if (a->length != b->length + 2){
+static bool flagEquals(Flag* a, Flag* b, int x){
+    if (a->length != (b->length + x)){
         return false;
     }
-    for (int i = 2; i < a->length; i ++){
-        if (a->value[i] != b->value[i]){
+    for (int i = 0; i < a->length; i ++){
+        if (a->value[i+x] != b->value[i]){
             return false;
         }
     }
@@ -665,9 +665,10 @@ void* matchEntity(Flag* flag, Array* array, bool checkAlias, bool hasHyphen){
         return NULL;
     }
     if (!checkAlias){
+        int x = hasHyphen? 2: 0;
         for (int i = 0; i < array->length; i ++){
             FlagInfo* other = array->values[i];
-            if (flagEquals(flag, other->flag)){
+            if (flagEquals(flag, other->flag, x)){
                 return (void*)other;
             }
         }
