@@ -387,14 +387,14 @@ void initApp(const char name[], const char version[], const char description[], 
     app.switches = createArray(slots.c+ addHelpSwitch + addVersionSwitch);
     app.usage = (char**)usage;
     if (addHelpSwitch){
-        addSwitch("--help", 'h', "Show context sensitive help message and exit.", true, helpSwitch);
+        addSwitch("help", 'h', "Show context sensitive help message and exit.", true, helpSwitch);
     }
     if (addVersionSwitch){
-        addSwitch("--version", 'v', "Show application version and exit.", true, versionSwitch);
+        addSwitch("version", 'v', "Show application version and exit.", true, versionSwitch);
     }
 }
 
-void addMainCommand(Slots slots, CommandCallback* callback){
+void addDefaultCommand(Slots slots, CommandCallback* callback){
     if (app.main){
         return;
     }
