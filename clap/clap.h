@@ -255,4 +255,11 @@ CommandGroup* addGroupG(
     Slots slots
 );
 
+/**
+ * Runs the cli app.
+ * @param argc the length of the command line values.
+ * @param argv the command line values.
+ * @param appNamespace the app namespace.
+ */
+int runApp(unsigned long int argc, const char* argv[], void* appNamespace);
 #endif
