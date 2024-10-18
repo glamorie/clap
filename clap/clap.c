@@ -46,10 +46,10 @@ static FixedArray* createArray(size_t capacity){
     return array;
 }
 
-static void appendValue(FixedArray* array, void* value){
-    array->values[array->length] = value;
-    array->length ++;
-}
+#define appendValue(array, value) do {                \
+    (array)->values[(array)->length] = (value);       \
+    (array)->length++;                                  \
+} while(0)
 
 typedef struct {
     char* name;
