@@ -47,9 +47,6 @@ static FixedArray* createArray(size_t capacity){
 }
 
 static void appendValue(FixedArray* array, void* value){
-    if (!array || array->length == array->capacity){
-        return;
-    }
     array->values[array->length] = value;
     array->length ++;
 }
