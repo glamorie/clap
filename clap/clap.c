@@ -51,6 +51,8 @@ static FixedArray* createArray(size_t capacity){
     (array)->length++;                                  \
 } while(0)
 
+#define ARRAY_FULL(t)(!t || t->length == t->capacity)
+
 typedef struct {
     char* name;
     char* metadata;
