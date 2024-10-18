@@ -584,3 +584,11 @@ void printHelp(){
     }
     helpApp();
 }
+
+int helpSwitch(void* _){
+    printHelp();
+}
+
+int versionSwitch(void* _){
+    printf("v%s\n", app.version);
+}
