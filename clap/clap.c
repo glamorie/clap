@@ -506,19 +506,19 @@ static void putMasterBits(FixedArray* commands, FixedArray* groups){
     }
 }
 
-void putBreadCrumb(FILE* stream){
+static void putBreadCrumb(FILE* stream){
     for (int i = 0; i <= masterTrace; i ++){
         fprintf(stream, "%s ", argValues[i]);
     }
 }
 
-void putTry(){
+static void putTry(){
     fprintf(stderr, "\nTry  : ");
     putBreadCrumb(stderr);
     fprintf(stderr, "--help\n");
 }
 
-void putUsage(char* usage[]){
+static void putUsage(char* usage[]){
     if (!usage || !usage[0]){
         printf("Usage: ");
         putBreadCrumb(stdout);
@@ -542,4 +542,45 @@ void putUsage(char* usage[]){
         i++;
     }
     putchar('\n');
+}
+
+static void helpCommand(Command* command){
+    putUsage(command->usage);
+    printf("%s\n\n", command->description);
+    putCommandBits(command);
+    putSwitches();       
+}
+
+static void helpGroup(CommandGroup* group){
+    printf("Usage: ");
+    putBreadCrumb(stdout);
+    puts("[-h|--help]\n");
+    printf("%s\n\n", group->description);
+    putMasterBits(group->commands, group->groups);
+    putSwitches();
+}
+
+static void helpApp(){
+    printf("%s v%s\n\n%s\n\n", app.name, app.version, app.description);
+    putUsage(app.usage);
+    if (app.main){
+        putCommandBits(app.main);
+    }
+    putMasterBits(app.commands, app.groups);
+    putSwitches();
+}
+
+void printHelp(){
+    if (!app.name){
+        return;
+    }
+    if (currentCommand && currentCommand != app.main){
+        helpCommand(currentCommand);
+        return;
+    }
+    if (currentGroup){
+        helpGroup(currentGroup);
+        return;
+    }
+    helpApp();
 }
