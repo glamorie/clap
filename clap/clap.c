@@ -586,15 +586,17 @@ void printHelp(){
     helpApp();
 }
 
-int helpSwitch(void* _){
+static int helpSwitch(void* _){
     printHelp();
+    return 0;
 }
 
-int versionSwitch(void* _){
+static int versionSwitch(void* _){
     printf("v%s\n", app.version);
+    return 0;
 }
 
-void freeCommand(Command* command){
+static void freeCommand(Command* command){
     if (command->name){
         free(command->name);
     }
@@ -626,7 +628,7 @@ void freeCommand(Command* command){
     free(command);
 }
 
-void freeMasterBits(FixedArray* groups, FixedArray* commands){
+static void freeMasterBits(FixedArray* groups, FixedArray* commands){
     if (commands){
         for (int i = 0; i < commands->length; i ++){
             Command* command = GET_AT(commands, i);
@@ -650,7 +652,7 @@ void freeMasterBits(FixedArray* groups, FixedArray* commands){
     }
 }
 
-void freeApp(){
+static void freeApp(){
     if (app.main){
         freeCommand(app.main);
     }
@@ -664,7 +666,7 @@ void freeApp(){
     app.usage = NULL;
 }
 
-void* findMatch(String* flag, FixedArray* array, bool checkAlias, bool hasHyphen){
+static void* findMatch(String* flag, FixedArray* array, bool checkAlias, bool hasHyphen){
     if (!array){
         return NULL;
     }
@@ -687,7 +689,7 @@ void* findMatch(String* flag, FixedArray* array, bool checkAlias, bool hasHyphen
     return NULL;
 }
 
-int parseValues(void* result[], const char name[], bool isPositional, uslot nargs, uslot slot){
+static int parseValues(void* result[], const char name[], bool isPositional, uslot nargs, uslot slot){
     size_t amount = 0;
     char** values;
     if (nargs == 1){
@@ -829,7 +831,7 @@ int parseValues(void* result[], const char name[], bool isPositional, uslot narg
     return 1;
 }
 
-int runCommand(){
+static int runCommand(){
     uslot fields = currentCommand->fields;
     void** result = calloc(fields, sizeof(void*));
     if (!result){
