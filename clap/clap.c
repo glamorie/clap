@@ -43,7 +43,7 @@ static FixedArray* createArray(size_t capacity){
         return NULL;
     }
     array->length = 0;
-    array->capacity = 0;
+    array->capacity = capacity;
     return array;
 }
 
@@ -366,8 +366,8 @@ bool addSwitch(const char flag[], char alias, const char description[], bool fin
     return false;
 }
 
-int helpSwitch(void* _);
-int versionSwitch(void* _);
+static int helpSwitch(void* _);
+static int versionSwitch(void* _);
 
 bool initApp(const char name[], const char version[], const char description[], Slots slots, bool addHelpSwitch, bool addVersionSwitch, const char* usage[]){
     if (app.name){
@@ -476,7 +476,6 @@ static void putSwitches(){
             }
             printf("--%s\n        %s\n", sw->flag->value, sw->description);
         }
-        putchar('\n');
     }
 }
 
@@ -529,7 +528,7 @@ static void putUsage(char* usage[]){
     if (!usage[1]){
         printf("Usage: ");
         putBreadCrumb(stdout);
-        printf("%s\n\n", usage[1]);
+        printf("%s\n\n", usage[0]);
         return;
     }
     
@@ -840,7 +839,6 @@ static int runCommand(){
     }
     int currentPositional = 0;
     int code = 0;
-    int check = true;
     Positional* pos = NULL;
     Argument* arg = NULL;
     Option* opt = NULL;
@@ -859,7 +857,6 @@ static int runCommand(){
                 argumentIndex++;
                 pos = NULL;
                 if (code = parseValues(result, arg->flag->value, false, arg->nargs, arg->slot)){
-                    check = false;
                     break;
                 }
                 continue;
@@ -868,11 +865,9 @@ static int runCommand(){
                 
             } else if (sw = findMatch(&value, app.switches, isAlias, true)){
                 if (code = sw->callback(appNamespace)){
-                    check = false;
                     break;
                 }
                 if (sw->final){
-                    check = false;
                     break;
                 }
             } else {
@@ -885,7 +880,6 @@ static int runCommand(){
             pos = GET_AT(currentCommand->positionals, currentPositional);
             arg = NULL;
             if (code = parseValues(result, pos->name, true, pos->nargs, pos->slot)){
-                check = false;
                 break;
             }
             currentPositional++;
@@ -900,13 +894,12 @@ static int runCommand(){
             }
             putTry();
             code = 1;
-            check = false;
             break;
         }
         argumentIndex++;
     }
 
-    if (!code && check){
+    if (!code){
         if (currentCommand->positionals){
             for (int i = 0; i < currentCommand->positionals->length; i ++){
                 pos = GET_AT(currentCommand->positionals, i);
@@ -916,12 +909,12 @@ static int runCommand(){
                 if (!result[pos->slot]){
                     fprintf(stderr,"Error: Missing value for positional argument [%s]\n", pos->name);
                     putTry();
-                    check = false;
+                    code = 1;
                     break;
                 }
             }
         }
-        if (check && currentCommand->arguments){
+        if (!code && currentCommand->arguments){
             for (int i = 0; i < currentCommand->arguments->length; i ++){
                 arg = GET_AT(currentCommand->arguments, i);
                 if (arg->optional){
@@ -930,14 +923,14 @@ static int runCommand(){
                 if (!result[arg->slot]){
                     fprintf(stderr,"Error: Missing value for  argument --%s\n", arg->flag->value);
                     putTry();
-                    check = false;
+                    code = 1;
                     break;
                 }
             }
         }
         CommandCallback* callback = currentCommand->callback;
         freeApp();
-        if (check){
+        if (!code){
             code = callback(result, appNamespace);
         }
     }else {
@@ -1013,18 +1006,20 @@ int runApp(size_t argc, const char* argv[], void* namespace){
         }
         argumentIndex++;
     }
-
     if (!code){
         if (!currentCommand){
             if (currentGroup){
                 fprintf(stderr,"Error: Missing command name.\n");
+                putTry();
                 code = 1;
-            }else {
-                currentCommand = app.main;
+            }else if (argc == 1) {
+                currentCommand = app.main;       
             }
         }
         if (currentCommand){
             code = runCommand();
+        }else {
+            freeApp();
         }
     }else{
         freeApp();
