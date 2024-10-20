@@ -1,6 +1,6 @@
 #ifndef CLAP_H
 #define CLAP_H
-
+#include <stdbool.h>
 /**
  * Contains information about a command.
  */
