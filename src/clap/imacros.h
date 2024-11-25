@@ -39,6 +39,8 @@
 #define EPRINTF(format, ...) fprintf(stderr, format , ##__VA_ARGS__)
 #define PERROR(format, ...) fprintf(stderr, cbold("Error")": "format, ##__VA_ARGS__)
 #define MEMORY_ERROR() fprintf(stderr, cbold("Error")": Memory Allocation failed!\n")
+#define IS_FLAG_ESCAPE(v) (v[1] == '-' && v[2] == 0)
+#define NARGS_QUANTIFIER(nargs) nargs? nargs == 1? "": "s" : "(s)"
 
 #define IF_POSITIONAL(a, b) do \
     if(positional) {a} else { b}\
