@@ -553,3 +553,108 @@ static bool get_one_value(clap_context_t* ctx, void* result[], char* name, slot_
         return true;
     }   
 }
+
+static void* type_alloc(clap_value_t type, size_t length){
+    void* data;
+    switch (type){
+        CLAP_INTEGER: {
+            data = malloc(sizeof(long)* length);
+            break;
+        }
+        CLAP_FLOAT: {
+            data = malloc(sizeof(long)* length);
+            break;
+        }
+        default: {
+            data = malloc(sizeof(char*)* length);
+        }
+    }
+    if (data){
+        return data;
+    }
+    MEMORY_ERROR();
+    return NULL;
+}
+
+static bool get_known_length(clap_context_t* ctx, void* result[], char* name, size_t amount,slot_t slot, bool positional, clap_value_t type){
+    clap_array_t* prev = result[slot];
+    if (prev){
+        free(prev->values);
+        free(prev);
+        prev = NULL;
+    }
+    clap_array_t* array = malloc(sizeof(array));
+    if (!array){
+        MEMORY_ERROR();
+        return true;
+    }
+    void** values = type_alloc(type, amount);
+    if (!values){
+        free(array);
+        return true;
+    }
+    size_t number = 0;
+    char* value;
+    bool greedy = false;
+    while (ctx->index < ctx->argc){
+        if (number == amount){
+            ctx->index ++;
+            break;
+        }
+        value =  ctx->argv[ctx->index];
+        ctx->index ++;
+        if (value[0] == '-' && ctx->greedy){
+            goto validate_and_set_value;
+        }
+        if (greedy){
+            greedy = false;
+            goto validate_and_set_value;
+        }
+        if (IS_FLAG_ESCAPE(value)){
+            if (!number){
+                ctx->greedy = true;
+                continue;
+            }
+            greedy = true;
+            continue;
+        }
+        break;
+        validate_and_set_value: {
+            if (type == CLAP_STRING){
+                values[number] = value; 
+                number ++;
+                continue;
+            }else if (type < 3){
+                if (!iconvert(&values[number], value, name, positional, type)){
+                    goto graceful_exit;
+                }
+                number ++;
+                continue;
+            }
+            if (!ivalidate(value, name, positional, type)){
+                goto graceful_exit;
+            }
+            values[number] = value;
+            number ++;
+        }
+    }
+    if (number != amount){
+        IF_POSITIONAL(
+            PERROR("Positional argument "fpos" expected "fnum" arguments but recived "fnum endl, name, amount, number);,
+            PERROR("Argument "fargu" expected "fnum" arguments but recived "fnum endl, name, amount, number);
+        );
+        print_try(ctx);
+        return true;
+    }    
+    array->values = values;
+    array->length = amount;
+    result[slot] = (void*)array;
+    ctx->greedy = false;
+    return false; 
+    graceful_exit:{
+        free(array->values);
+        free(array);
+        print_try(ctx);
+        return true;
+    }
+}
