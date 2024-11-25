@@ -866,11 +866,11 @@ static int run_command(clap_context_t* ctx){
             code = 1; 
             goto graceful_exit;
             
-        }else if (command->positionals && current_positional++ < command->positionals->length){
+        }else if (command->positionals && current_positional < command->positionals->length){
             pos = AT(command->positionals, current_positional);
             arg = NULL;
             if (code = get_values(ctx, result, pos->name->value, pos->slot, pos->amount, true, pos->type)){
-                break;
+                goto graceful_exit;
             }
             current_positional++;
             continue;
