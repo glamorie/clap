@@ -898,3 +898,98 @@ static int run_command(clap_context_t* ctx){
         return code;
     }
 }
+
+int clap_run(clap_app_t* app, size_t argc, const char* argv[], void* data){
+    clap_context_t  ctx = {
+        .app = app,
+        .command = NULL,
+        .group = NULL,
+        .data = data,
+        .index = 1,
+        .trace = 0,
+        .argc = argc,
+        .argv = (char**)argv,
+        .greedy = false
+    };
+    int code = 0;
+    while (ctx.index < ctx.argc){
+        clap_string_t value = {.value = (char*)ctx.argv[ctx.index], .length=strlen(ctx.argv[ctx.index])};
+        if (!ctx.greedy && value.value[0] == '-'){
+            if (IS_FLAG_ESCAPE(value.value)){
+                ctx.greedy = true;
+                ctx.index++;
+                continue;
+            }
+            clap_switch_t* sw;
+            if (sw = find_match(&value, app->switches, value.length == 2, true)){
+                if (code = sw->callback(&ctx)){
+                    break;
+                }
+                if (sw->exits){
+                    return 0;
+                }
+            }else if (app->main){
+                ctx.command = app->main;
+                break;
+            }else {
+                PERROR("Unrecognised option "fuargu endl, value.value);
+                goto print_try_and_exit;
+            }
+        }else if(ctx.greedy && !ctx.trace){
+            if (app->main){
+                ctx.command = app->main;
+                break;
+            }
+            PERROR("Unexpected value "funkown endl, value.value);
+            goto print_try_and_exit;
+        }else {
+            if (ctx.command = find_match(&value, ctx.group? ctx.group->commands : app->commands ,value.length == 1, false)){
+                ctx.trace++;
+                ctx.index++;
+                break;
+            } else if (ctx.group = find_match(&value, ctx.group? ctx.group->groups : app->groups , value.length == 1, false)){
+                ctx.trace++;
+            } else if (app->main && app->main->positionals && app->main->positionals->length){
+                ctx.command = app->main;
+                break;
+            
+            }else {
+                if (app->commands && app->commands->length){
+                    PERROR("Unrecognised command "fcommand endl, value.value);
+                }else {
+                    PERROR("Unexpected value "fargu endl, value.value);
+                }
+                goto print_try_and_exit;
+            }
+        }
+        ctx.index++;
+    }
+    if (code){
+        return code;
+    }
+    if (!ctx.command){
+        if (ctx.group){
+            PERROR("Missing command name" endl);
+            goto print_try_and_exit;
+        }else if (argc == 1) {
+            ctx.command = app->main;       
+        }
+    }
+    if (ctx.command){
+        return run_command(&ctx);
+    }
+    print_try_and_exit:{ 
+        print_try(&ctx);
+        return 1;
+    }
+}
+
+int default_help_switch_fn(const clap_context_t* ctx){
+    print_help(ctx);
+    return 0;
+}
+
+int default_version_switch_fn(const clap_context_t* ctx){
+    printf(fapp" "fvers "\n", ctx->app->name, ctx->app->version);
+    return 0;
+}
