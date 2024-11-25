@@ -315,3 +315,187 @@ void print_help(const clap_context_t* ctx){
     }
     help_app(ctx);
 }
+
+#ifdef _WIN32
+    #include <Windows.h>
+    #define SETUP_COLORS() enable_virtual_terminal_processing()
+
+    static void enable_virtual_terminal_processing(){
+        HWND out = GetStdHandle(STD_ERROR_HANDLE);
+        if (out == INVALID_HANDLE_VALUE){
+            return;
+        }
+        DWORD mode;
+        if (!GetConsoleMode(out, &mode)){
+            return;
+        }
+        mode |= 0x0004;
+        SetConsoleMode(out, mode);
+    }
+
+    static bool file_exists(const char* path, bool* exists){
+        DWORD attributes = GetFileAttributesA(path);
+        if (attributes == INVALID_FILE_ATTRIBUTES){
+            return false;
+        }
+        *exists = true;
+        return !(attributes & FILE_ATTRIBUTE_DIRECTORY);
+    }
+
+    static bool directory_exists(const char* path, bool* exists){
+        DWORD attributes = GetFileAttributesA(path);
+        if (attributes == INVALID_FILE_ATTRIBUTES){
+            return false;
+        }
+        *exists = true;
+        return (attributes & FILE_ATTRIBUTE_DIRECTORY);
+    }
+
+    static bool path_exists(const char* path){
+        DWORD attributes = GetFileAttributesA(path);
+        return (attributes == INVALID_FILE_ATTRIBUTES);
+    }
+
+#else 
+    #include <sys/stat.h>
+    #include <stdio.h>
+    #define SETUP_COLOR()
+
+    static bool file_exists(const char* path, bool* exists) {
+        struct stat attributes;
+        if (stat(path, &attributes) != 0) {
+            return 0;
+        }
+        *exists = true;
+        return S_ISREG(attributes.st_mode);
+    }
+
+    static bool directory_exists(const char* path, bool* exists) {
+        struct stat attributes;
+        if (stat(path, &attributes) != 0) {
+            return 0;
+        }
+        *exists = true;
+        return S_ISDIR(attributes.st_mode);
+    }
+
+    static bool path_exists(const char* path) {
+        struct stat attributes;
+        return stat(path, &attributes) == 0;
+    }
+#endif
+
+static bool iconvert(void* destination, const char* value, char* name, bool positional, clap_value_t type){
+    switch (type){
+        case CLAP_INTEGER: {
+            char* error;
+            long* data = destination;
+            *data = strtol(value, &error, 10);
+            if (!*error){
+                break;
+            }
+            IF_POSITIONAL(
+            PERROR("Positional argument "fpos" expected integer but recieved "fvalue endl, name, value);,
+            PERROR("Argument "fargu" expected integer but recieved "fvalue endl, name, value);
+            );
+            return false;
+        }
+        case CLAP_FLOAT: {
+            char* error;
+            double* data = destination;
+            *data = strtod(value, &error);
+            if (!*error){
+                break;
+            }
+            IF_POSITIONAL(
+            PERROR("Positional argument "fpos" expected integer but recieved "fvalue endl, name, value);,
+            PERROR("Argument "fargu" expected integer but recieved "fvalue endl, name, value);
+            );
+            return false;
+        }
+    }
+    return true;
+}
+
+static void* mconvert(const char* value, char* name, bool positional, clap_value_t type, bool* ismem){
+    void* destination;
+    switch (type){
+        case CLAP_INTEGER: {
+            destination = malloc(sizeof(long));
+            break;
+        }
+        case CLAP_FLOAT: {
+            destination = malloc(sizeof(long));
+            break;
+        }
+    }
+    if (!destination){
+        MEMORY_ERROR();
+        *ismem = true;
+        return NULL;
+    }
+    if (iconvert(destination, value, name, positional, type)){
+        return destination;
+    }
+    free(destination);
+    return NULL;
+}
+
+static const char* ivalidate(const char* value, char* name, bool positional, clap_value_t type){
+    switch (type){
+        case CLAP_FILE:{
+            bool exists = false;
+            if (file_exists(value, &exists)){
+                return value;
+            }
+            if (!exists){
+                break;
+            }
+            IF_POSITIONAL(
+            PERROR("Path "fvalue" provided for positional argument "fpos" is a directory, not a file" endl, value, name);,
+            PERROR("Path "fvalue" provided for argument "fargu" is a directory, not a file" endl, value, name);
+            );
+            return NULL;
+        }
+        case CLAP_DIRECTORY:{
+            bool exists = false;
+            if (directory_exists(value, &exists)){
+                return value;
+            }
+            if (!exists){
+                break;
+            }
+            IF_POSITIONAL(
+            PERROR("Path "fvalue" provided for positional argument "fpos" is a file, not a directory." endl, value, name);,
+            PERROR("Path "fvalue" provided for argument "fargu" is a file, not a directory" endl, value, name);
+            );
+            return NULL;
+        }
+        case CLAP_PATH:{
+            bool exists = false;
+            if (path_exists(value)){
+                return value;
+            }
+            break;
+        }
+    }
+    IF_POSITIONAL(
+    PERROR("Path "fvalue" provided for positional argument "fpos" does not exist" endl, value, name);,
+    PERROR("Path "fvalue" provided for argument "fargu" does not exist" endl, value, name);
+    );
+    return NULL;
+}
+
+static char* validate(const char* value, char* name, bool positional, clap_value_t type, bool* ismem){
+    char* data = strdup(value);
+    if (!data){
+        MEMORY_ERROR();
+        *ismem = true;
+        return NULL;
+    }
+    if (ivalidate(value, name, positional, type)){
+        return data;       
+    }
+    free(data);
+    return NULL;
+}
