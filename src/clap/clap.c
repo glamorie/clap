@@ -748,3 +748,35 @@ static bool get_unknown_length(clap_context_t* ctx, void* result[], char* name, 
         return true;        
     }
 }
+
+static bool get_values(clap_context_t* ctx, void* result[], char* name, slot_t slot, size_t nargs, bool positional, clap_value_t type){
+    if (!nargs){
+        return get_unknown_length(ctx, result, name, slot, positional, type);
+    }else if (nargs == 1){
+        return get_one_value(ctx, result, name, slot, positional, type);
+    }
+    return get_known_length(ctx, result, name, nargs, slot, positional, type);
+}
+
+static void* find_match(clap_string_t* flag, clap_array_t* array, bool is_alias, bool is_flag){
+    if (!array){
+        return NULL;
+    }
+    if (!is_alias){
+        int x = is_flag? 2: 0;
+        for (int i = 0; i < array->length; i ++){
+            flag_info_t* other = array->values[i];
+            if (string_compare(flag, other->name, x)){
+                return (void*)other;
+            }
+        }
+        return NULL;
+    }
+    for (int i = 0; i < array->length; i ++){
+        flag_info_t* other = array->values[i];
+        if (other->alias == flag->value[is_flag]){
+            return (void*)other;
+        }
+    }
+    return NULL;
+}
