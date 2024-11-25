@@ -37,6 +37,12 @@
 #define AT(array, i) array->values[i]
 #define PRINT_TAB() printf("    ");
 #define EPRINTF(format, ...) fprintf(stderr, format , ##__VA_ARGS__)
+#define PERROR(format, ...) fprintf(stderr, cbold("Error")": "format, ##__VA_ARGS__)
+#define MEMORY_ERROR() fprintf(stderr, cbold("Error")": Memory Allocation failed!\n")
+
+#define IF_POSITIONAL(a, b) do \
+    if(positional) {a} else { b}\
+    while(0)
 
 #endif // CLAP_MACROS_H
 
