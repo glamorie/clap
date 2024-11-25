@@ -658,3 +658,93 @@ static bool get_known_length(clap_context_t* ctx, void* result[], char* name, si
         return true;
     }
 }
+
+static bool get_unknown_length(clap_context_t* ctx, void* result[], char* name, slot_t slot, bool positional, clap_value_t type){
+    clap_array_t* prev = result[slot];
+    if (prev){
+        free(prev->values);
+        free(prev);
+        prev = NULL; 
+    }
+    clap_array_t* array = malloc(sizeof(clap_array_t));
+    if (!array){
+        MEMORY_ERROR();
+        return true;
+    }
+    bool requires_validation = type > 2;
+    size_t amount = 0;
+    size_t start = ctx->index;
+    bool greedy = false;
+    char* value;
+    while (ctx->index < ctx->argc){
+        value = ctx->argv[ctx->index];
+        ctx->index ++;
+        if (value[0] != '-' || ctx->greedy){
+            amount ++;
+            if (!requires_validation){
+                continue;
+            }
+            goto validate_values;
+        }else if (greedy){
+            greedy = false;
+            goto validate_values;
+        }else if (IS_FLAG_ESCAPE(value)){
+            if (!amount){
+                ctx->greedy = true;
+                continue;
+            }
+            greedy = true;
+            continue;
+        }
+        break;
+        validate_values: {
+            if (!ivalidate(value, name, positional, type)){
+                goto graceful_exit;
+            }
+        }
+    }
+    if (!amount){
+        IF_POSITIONAL(
+            PERROR("Positional argument "fpos" expected at least one value but recieved none"endl, name);,
+            PERROR("Argument "fargu" expected at least one value but recieved none"endl, name);
+        );
+        goto graceful_exit;
+    }
+    void** values = type_alloc(type, amount);
+    if (!values){
+        MEMORY_ERROR();
+        free(array);
+        return true;
+    }
+    size_t true_index = 0;
+    for (size_t i = start; i < ctx->index; i ++){
+        value = ctx->argv[start+i];
+        if (ctx->greedy){
+            if (!requires_validation){
+                goto convert_values;
+            }
+            values[true_index] = value;
+            true_index++;
+            continue;
+        }else if (value[0] == '-' && IS_FLAG_ESCAPE(value)){
+            continue;
+        }
+        if (requires_validation){
+            values[true_index] = value;
+            true_index ++;
+            continue;
+        }
+        convert_values:{
+            if (!iconvert(&values[true_index], value, name, positional, type)){
+                goto graceful_exit;
+            }
+            true_index++;
+        }
+    }
+    graceful_exit: {
+        free(array->values);
+        free(array);
+        print_try(ctx);
+        return true;        
+    }
+}
