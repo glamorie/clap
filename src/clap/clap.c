@@ -146,7 +146,7 @@ static void print_command_bits(clap_command_t* command){
         for (int i = 0; i < command->positionals->length; i ++){
             clap_positional_t* pos = AT(command->positionals, i);
             PRINT_TAB();
-            printf("%s [%s] ",pos->name, metadata[pos->type]);
+            printf("%s [%s] ",pos->name->value, metadata[pos->type]);
             bridge_offset(offset, pos_flag_offset(pos));
             print_desc(pos->description, offset, console_width);
         }
@@ -779,4 +779,122 @@ static void* find_match(clap_string_t* flag, clap_array_t* array, bool is_alias,
         }
     }
     return NULL;
+}
+
+static int run_command(clap_context_t* ctx){
+    clap_command_t* command = ctx->command;
+    size_t fields =
+        (command->arguments? command->arguments->length : 0) + 
+        (command->positionals? command->positionals->length : 0) +
+        (command->options? command->options->length : 0) 
+    ;
+    void** result = calloc(fields, sizeof(void*));
+    if (!result){
+        MEMORY_ERROR();
+        return 1;
+    }
+    int current_positional = 0;
+    int code = 0;
+    clap_positional_t* pos = NULL;
+    clap_argument_t* arg = NULL;
+    clap_option_t* opt = NULL;
+    clap_switch_t* sw = NULL;
+
+    while (ctx->index < ctx->argc){
+        clap_string_t value = {.value = (char*)ctx->argv[ctx->index], .length=strlen(ctx->argv[ctx->index])};
+        if (!ctx->greedy && value.value[0] =='-'){
+            if (IS_FLAG_ESCAPE(value.value)){
+                ctx->greedy = true;
+                ctx->index++;
+                continue;
+            }
+            bool is_alias = value.length == 2;
+            if (arg = find_match(&value, command->arguments, is_alias, true)){
+                ctx->index++;
+                pos = NULL;
+                if (code = get_values(ctx, result, arg->flag->value, arg->slot, arg->amount, false, arg->type)){
+                    goto graceful_exit;
+                }
+                continue;
+            } else if (opt = find_match(&value, command->options, is_alias, true)){
+                result[opt->slot] = (void*)true;
+                ctx->index ++;
+                continue;        
+            } else if (sw = find_match(&value, ctx->app->switches, is_alias, true)){
+                if (code = sw->callback(ctx)){
+                    goto graceful_exit;
+                }
+                if (sw->exits){
+                    goto graceful_exit;
+                }
+                ctx->index ++;
+                continue;
+            } 
+            PERROR("Unrecognized option "funkown endl, value.value);
+            print_try(ctx);
+            code = 1; 
+            goto graceful_exit;
+            
+        }else if (command->positionals && current_positional++ < command->positionals->length){
+            pos = AT(command->positionals, current_positional);
+            arg = NULL;
+            if (code = get_values(ctx, result, pos->name->value, pos->slot, pos->amount, true, pos->type)){
+                break;
+            }
+            current_positional++;
+            continue;
+        }
+        if (pos){
+            PERROR("Positional argument "fpos" expected "fnum" value%s" endl, pos->name->value, pos->amount, NARGS_QUANTIFIER(pos->amount));
+        }else if (arg){
+            PERROR("Argument "fargu" expected "fnum" value%s" endl, arg->flag->value, arg->amount, NARGS_QUANTIFIER(arg->amount));
+        }else {
+            PERROR("Unexpected value \"%s\"\n", value.value);
+        }
+        print_try(ctx);
+        code = 1;
+        goto graceful_exit;
+    }
+    if (command->positionals){
+        for (int i = 0; i < command->positionals->length; i ++){
+            pos = AT(command->positionals, i);
+            if (!pos->required){
+                continue;
+            }   
+            if (!result[pos->slot]){
+                PERROR("Missing value%s for positional argument "fpos endl, NARGS_QUANTIFIER(pos->amount), pos->name);
+                print_try(ctx);
+                code = 1;
+                goto graceful_exit;
+            }
+        }
+    }
+    if (command->arguments){
+        for (int i = 0; i < command->arguments->length; i ++){
+            arg = AT(command->arguments, i);
+            if (!arg->required){
+                continue;
+            }   
+            if (!result[arg->slot]){
+                PERROR("Missing value%s for argument "fargu endl, NARGS_QUANTIFIER(arg->amount), arg->flag->value);
+                print_try(ctx);
+                code = 1;
+                goto graceful_exit;
+            }
+        }
+    }
+    clap_command_callback_t callback = command->callback;
+    if (!code){
+        code = callback(result, ctx->data);
+    }
+    graceful_exit: {
+        for (int i = 0; i < fields; i ++){
+            if (!result[i]){
+                continue;
+            }
+            free(result[i]);   
+        }
+        free(result);
+        return code;
+    }
 }
