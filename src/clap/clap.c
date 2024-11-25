@@ -234,36 +234,43 @@ static void print_switches(clap_app_t* app){
 }
 
 static void print_parent_bits(clap_array_t* commands, clap_array_t* groups){
+    if (!(commands || groups)){
+        return;
+    }
+    printf(ftitle("Command%c:\n"), 
+        commands && groups ? 's': (
+            commands? QUANTIFIER(commands) :
+            groups? QUANTIFIER(groups) : 0
+        ));
+    unsigned offset = 
+        (commands? get_other_offsets(commands, false) : 0) +
+        (groups? get_other_offsets(groups, false) : 0);
+
     if (commands && commands->length){
-        printf(ftitle("Command%c\n"), QUANTIFIER(commands));
-        unsigned offset = get_other_offsets(commands, false);
         for (int i = 0; i < commands->length; i ++){
             clap_command_t* command = AT(commands, i);
             PRINT_TAB();
             if (command->alias){
-                printf("%c/", command->alias);
+                printf("%c| ", command->alias);
             }
             printf("%s ", command->name->value);
             bridge_offset(offset, other_flag_offset((void*)command, false));
             print_desc(command->description, offset, console_width);
         }
-        putchar('\n');
     }
     if (groups && groups->length){
-        printf(ftitle("Command Group%c\n"), QUANTIFIER(groups));
-        unsigned offset = get_other_offsets(groups, false);
         for (int i = 0; i < groups->length; i ++){
             clap_group_t* grp = AT(groups, i);
             PRINT_TAB();
             if (grp->alias){
-                printf("%c/", grp->alias);
+                printf("%c| ", grp->alias);
             }
             printf("%s ", grp->name->value);
             bridge_offset(offset, other_flag_offset((void*)grp, false));
             print_desc(grp->description, offset, console_width);
         }
-        putchar('\n');
     }
+    putchar('\n');
 }
 
 static void print_breadcrumb(const clap_context_t* ctx, FILE* stream){
