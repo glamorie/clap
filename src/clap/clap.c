@@ -4,7 +4,39 @@
 #include "iclap.h"
 #include "imacros.h"
 
-#define console_width 80 // TODO: implement function for getting the console width.
+#define console_width get_console_width()
+static size_t term_width = 0;
+
+#ifdef _WIN32
+    #include <Windows.h>
+    size_t get_console_width() {
+        if (term_width){
+            return term_width;
+        }
+        CONSOLE_SCREEN_BUFFER_INFO csbi;
+        if (GetConsoleScreenBufferInfo(GetStdHandle(STD_ERROR_HANDLE), &csbi)) {
+            term_width = csbi.srWindow.Right - csbi.srWindow.Left + 1;
+            return term_width;
+        }
+        term_width = 100;
+        return term_width; 
+    }
+#else
+    #include <sys/ioctl.h>
+    #include <unistd.h>
+    static size_t get_console_width() {
+        if (term_width){
+            return term_width;
+        }
+        struct winsize w;
+        if (ioctl(STDERR_FILENO, TIOCGWINSZ, &w) == 0) {
+            term_width = w.ws_col;
+            return term_width;
+        }
+        term_width = 100;
+        return term_width; 
+    }
+#endif
 
 static const char* metadata[] = {
     "TEXT","INTEGER","FLOAT",
@@ -358,7 +390,6 @@ void print_help(const clap_context_t* ctx){
 
 #else 
     #include <sys/stat.h>
-    #include <stdio.h>
     #define SETUP_COLOR()
 
     static bool file_exists(const char* path, bool* exists) {
