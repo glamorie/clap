@@ -28,10 +28,15 @@
 #define fvalue cgreen("\"%s\"") // Values 
 #define fapp cbold("%s") // App name
 #define fvers cunderline(cbold("%s")) // App version
-#define ftitle(fmt) fbold(fmt)  // Some tutle
+#define ftitle(fmt) cbold(fmt)  // Some title
 
 #define endl ".\n"
 #define TAB "        "
+
+#define QUANTIFIER(n) n->length == 1 ? 0: 's'
+#define AT(array, i) array->values[i]
+#define PRINT_TAB() printf("    ");
+#define EPRINTF(format, ...) fprintf(stderr, format , ##__VA_ARGS__)
 
 #endif // CLAP_MACROS_H
 
