@@ -4,6 +4,7 @@
 #include "iclap.h"
 #include "imacros.h"
 
+#define export __declspec(dllexport)
 #define console_width get_console_width()
 static size_t term_width = 0;
 
@@ -340,7 +341,7 @@ static void help_app(const clap_context_t* ctx){
     print_switches(ctx->app);
 }
 
-void print_help(const clap_context_t* ctx){
+export void print_help(const clap_context_t* ctx){
     if (!ctx->app){
         return;
     }
@@ -937,7 +938,7 @@ static int run_command(clap_context_t* ctx){
     }
 }
 
-int clap_run(clap_app_t* app, size_t argc, const char* argv[], void* data){
+export int clap_run(clap_app_t* app, size_t argc, const char* argv[], void* data){
     clap_context_t  ctx = {
         .app = app,
         .command = NULL,
@@ -1022,12 +1023,12 @@ int clap_run(clap_app_t* app, size_t argc, const char* argv[], void* data){
     }
 }
 
-int default_help_switch_fn(const clap_context_t* ctx){
+export int default_help_switch_fn(const clap_context_t* ctx){
     print_help(ctx);
     return 0;
 }
 
-int default_version_switch_fn(const clap_context_t* ctx){
+export int default_version_switch_fn(const clap_context_t* ctx){
     printf(fapp" "fvers "\n", ctx->app->name, ctx->app->version);
     return 0;
 }
