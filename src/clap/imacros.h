@@ -21,7 +21,7 @@
 // Format specifiers 
 #define fpos cbold(cyellow("[%s]")) // Positional arguments..
 #define fargu cbold(cyellow("--%s")) // Named arguments
-#define fuargu citalic(blue("--%s")) // Unknown Named arguments
+#define fuargu citalic(cblue("%s")) // Unknown Named arguments
 #define fcommand cbold(cyellow("%s")) // Command / Command group names.
 #define funkown citalic(cblue("\"%s\"")) // Unknown command
 #define fnum cbold(cgreen("%lu")) // Numbers
