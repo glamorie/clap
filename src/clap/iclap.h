@@ -76,7 +76,7 @@ typedef enum {
  *   
  */
 typedef struct {
-    char* name;
+    clap_string_t* name;
     char* description;
     size_t amount;
     slot_t slot;
