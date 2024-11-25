@@ -499,3 +499,57 @@ static char* validate(const char* value, char* name, bool positional, clap_value
     free(data);
     return NULL;
 }
+
+static bool get_one_value(clap_context_t* ctx, void* result[], char* name, slot_t slot, bool positional, clap_value_t type){
+    if (ctx->index == ctx->argc){
+        goto missing_value_error;
+    }
+    char* value = ctx->argv[ctx->index];
+    if (!ctx->greedy && value[0] == '-' && IS_FLAG_ESCAPE(value)){
+        ctx->index ++;
+        if (ctx->index == ctx->argc){
+            goto missing_value_error;
+        }
+        value = ctx->argv[ctx->index];
+    }
+    void* data;
+    if (type == CLAP_STRING){
+        data = strdup(value);
+        if (!data){
+            MEMORY_ERROR();
+            return true;
+        }
+    }else if (type < 3){
+        bool allocation_failed = false;
+        data = mconvert(value, name, positional, type, &allocation_failed);
+        if (allocation_failed){
+            return true;
+        }
+        if (!data){
+            print_try(ctx);
+            return true;
+        }
+    }else {
+        bool allocation_failed = false;
+        data = validate(value, name, positional, type, &allocation_failed);
+        if (allocation_failed){
+            return true;
+        }
+        if (!data){
+            print_try(ctx);
+            return true;
+        }
+    }
+    result[slot] = data;
+    ctx->index ++;
+    ctx->greedy = false;
+    return false;
+    missing_value_error: {
+        IF_POSITIONAL(
+            PERROR("Missing value for positional argument "fpos endl, name);,
+            PERROR("Missing value for  argument "fargu endl, name);
+        );
+        print_try(ctx);
+        return true;
+    }   
+}
