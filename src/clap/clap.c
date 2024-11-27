@@ -4,12 +4,12 @@
 #include "iclap.h"
 #include "imacros.h"
 
-#define export __declspec(dllexport)
 #define console_width get_console_width()
 static size_t term_width = 0;
 
 #ifdef _WIN32
     #include <Windows.h>
+    #define export __declspec(dllexport)
     size_t get_console_width() {
         if (term_width){
             return term_width;
@@ -24,6 +24,7 @@ static size_t term_width = 0;
     }
 #else
     #include <sys/ioctl.h>
+    #define export  __attribute__((visibility("default")))
     #include <unistd.h>
     static size_t get_console_width() {
         if (term_width){
